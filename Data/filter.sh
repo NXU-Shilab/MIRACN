@@ -1,46 +1,59 @@
 #!/bin/bash
 
-# Define the path of the input file
+# Define input file path containing variant data
 input_file="reva_human_38_uniq.txt"
 
-# Define the filtering conditions and output files
-# The keys are cell lines, and the values are positive and negative p-value thresholds separated by a space
+# Define filtering criteria and output files
+# Keys: Cell line names
+# Values: Positive and negative p-value thresholds separated by space
+# Format: ["CellLine"]="positive_threshold negative_threshold"
 declare -A cell_lines=(
-    ["K562"]="0.01 0.001"
-    ["HepG2"]="0.01 0.001"
-    ["GM18507"]="0.01 0.01"
-    ["GM12878"]="0.01 0.01"
-    ["HEK293T"]="0.01 0.01"
-    ["HEK293FT"]="0.01 0.01"
-    ["HaCaT"]="0.01 0.01"
+    ["K562"]="0.01 0.999"       # Positive: p < 0.01, Negative: p > 0.999
+    ["HepG2"]="0.01 0.999"     # Positive: p < 0.01, Negative: p > 0.999
+    ["GM18507"]="0.01 0.99"    # Positive: p < 0.01, Negative: p > 0.99
+    ["GM12878"]="0.01 0.99"    # Positive: p < 0.01, Negative: p > 0.99
+    ["HEK293T"]="0.01 0.99"    # Positive: p < 0.01, Negative: p > 0.99
+    ["HEK293FT"]="0.01 0.99"   # Positive: p < 0.01, Negative: p > 0.99
+    ["HaCaT"]="0.01 0.99"      # Positive: p < 0.01, Negative: p > 0.99
 )
 
-# Define the cell lines for which the top N negative results are to be taken and the corresponding number
+# Define cell lines requiring top N negative results and their counts
+# Keys: Cell line names
+# Values: Number of top negative results to keep
 declare -A top_n_negative=(
-    ["GM12878"]="1956"
-    ["HEK293FT"]="641"
+    ["GM12878"]="1956"   # Keep top 1956 negative results for GM12878
+    ["HEK293FT"]="641"   # Keep top 641 negative results for HEK293FT
 )
 
-# Loop through each cell line
+# Process each cell line
 for cell_line in "${!cell_lines[@]}"; do
-    # Get the positive and negative p-value thresholds
+    # Extract thresholds for current cell line
     IFS=' ' read -r pos_threshold neg_threshold <<< "${cell_lines[$cell_line]}"
 
-    # Filter positive results
-    # Read the input file, filter lines containing the current cell line, 
-    # select lines where the p-value is less than the positive threshold and not equal to ".",
-    # then select lines where the 16th column is equal to 1 (positive results),
-    # and finally extract the first 5 columns and save them to a file ending with "_1.vcf"
-    less "$input_file" | grep "$cell_line" | awk -v thresh="$pos_threshold" '{if ($12 < thresh && $12 != ".") print $0}' | awk '{if ($16 == 1) print $0}' | cut -f 1-5 > "${cell_line}_1.vcf"
+    # Process positive results (unchanged criteria)
+    # Filter logic:
+    # 1. Find lines for current cell line
+    # 2. Select rows with p-value < pos_threshold and not missing (.)
+    # 3. Select positive class (column 16 == 1)
+    # 4. Extract first 5 columns
+    less "$input_file" | grep "$cell_line" | awk -v thresh="$pos_threshold" '$12 < thresh && $12 != "."' | awk '$16 == 1' | cut -f 1-5 > "${cell_line}_1.vcf"
 
-    # Filter negative results
-    negative_results=$(less "$input_file" | grep "$cell_line" | awk -v thresh="$neg_threshold" '{if ($12 < thresh && $12 != ".") print $0}' | awk '{if ($16 == 0) print $0}' | cut -f 1-5)
+    # Process negative results (modified criteria)
+    # Filter logic:
+    # 1. Find lines for current cell line
+    # 2. Select rows with p-value > neg_threshold and not missing (.)
+    # 3. Select negative class (column 16 == 0)
+    # 4. Sort by p-value in descending order (largest p-values first)
+    # 5. Extract first 5 columns
+    negative_results=$(less "$input_file" | grep "$cell_line" | awk -v thresh="$neg_threshold" '$12 > thresh && $12 != "."' | awk '$16 == 0' | sort -k12,12gr | cut -f 1-5)
 
-    # Check if the top N negative results need to be taken
+    # Handle top N selection for specified cell lines
     if [[ -n "${top_n_negative[$cell_line]}" ]]; then
         top_n="${top_n_negative[$cell_line]}"
+        # Take the top N results after sorting
         echo "$negative_results" | head -n "$top_n" > "${cell_line}_0.vcf"
     else
+        # Keep all qualified negative results
         echo "$negative_results" > "${cell_line}_0.vcf"
     fi
 done
