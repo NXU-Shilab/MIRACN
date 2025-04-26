@@ -1,3 +1,11 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:85285b45b2803bd63a59ec6768f409adcf4c2d87dbf817abf3f31a0bf22a8570
-size 414
+import pandas as pd
+
+df = pd.read_csv('output_ind_test.csv')
+
+data = df.iloc[:, 12:]
+
+df['pred'] = (data.abs() > 0.3).any(axis=1)
+
+df['pred'] = df['pred'].astype(int)
+
+df.to_csv('expecto_ind_test_pred.csv', index=False)
