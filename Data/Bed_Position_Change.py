@@ -1,3 +1,13 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:d2b68a2cf4f0ffb6083c3a00878561bc85897a9f162a393eb0814f5273a52800
-size 538
+import pandas as pd
+
+# Read the GTEx_use_38_col3.txt file
+col3_data = pd.read_csv('../independent_test_GTEx/GTEx-variant-data_38_col3.txt', header=None, sep='\t', names=['chrom_pos'])
+
+# Read the GTEx-variant-data_38.tsv file
+variant_data = pd.read_csv('../independent_test_GTEx/GTEx-variant-data_38.tsv', header=None, sep='\t')
+
+# Replace the content of the second column
+variant_data.iloc[:, 1] = col3_data['chrom_pos']
+
+# Save to a new file
+variant_data.to_csv('GTEx-variant-data_38_replaced.tsv', index=False, header=False, sep='\t')
