@@ -1,3 +1,8 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:f00a00ac2f8b9929c014510f2350f3451113bd3f4b7f86f0dedb13874f167c08
-size 329
+import pandas as pd
+
+from train_nois import train_5f
+
+fold_results, cell_type_accuracies, functionality_aucs = train_5f()
+
+fold_results_df = pd.concat([pd.DataFrame([fold_results]) for fold_results in fold_results])
+fold_results_df.to_csv('cnn_MIRACN_{}_fold_results_search_new.csv'.format(1993), header=True, index=False)
